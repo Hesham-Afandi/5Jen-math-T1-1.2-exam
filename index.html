@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚖️ مقارنة الأعداد الكلية حتى الملايين</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; }
+        body.en-mode { font-family: 'Inter', sans-serif; }
+        .correct { background-color: #dcfce7 !important; border-color: #16a34a !important; }
+        .incorrect { background-color: #fee2e2 !important; border-color: #dc2626 !important; }
+        .timer-warning { color: #dc2626 !important; animation: pulse 1s infinite; }
+        @keyframes pulse { 50% { opacity: 0.7; } }
+        @media print { .no-print { display: none !important; } }
+        .success-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 0.875rem; }
+        .grade-excellent { background: #dcfce7; color: #166534; }
+        .grade-good { background: #fef3c7; color: #92400e; }
+        .grade-pass { background: #dbeafe; color: #1e40af; }
+        .grade-fail { background: #fee2e2; color: #991b1b; }
+        .lang-switch {
+            position: fixed; top: 16px; left: 16px; z-index: 100;
+            background: white; padding: 6px; border-radius: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: flex; gap: 4px;
+            border: 2px solid #3b82f6;
+        }
+        [dir="ltr"] .lang-switch { left: auto; right: 16px; }
+        .lang-btn {
+            padding: 6px 14px; border-radius: 20px; cursor: pointer; font-weight: bold;
+            transition: all 0.3s; border: none; font-size: 0.875rem;
+            background: transparent; color: #6b7280;
+        }
+        .lang-btn.active { background: #3b82f6; color: white; box-shadow: 0 2px 6px rgba(59,130,246,0.4); }
+        .lang-btn:hover:not(.active) { background: #eff6ff; color: #3b82f6; }
+        .shuffle-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        .svg-graph {
+            display: block;
+            margin: 12px auto;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .graph-container { text-align: center; margin: 10px 0; }
+        .math-display {
+            display: inline-block;
+            direction: ltr;
+            font-family: 'Times New Roman', 'Cambria Math', serif;
+            font-size: 1.3em;
+            padding: 4px 12px;
+            background: #eff6ff;
+            border-radius: 6px;
+            margin: 2px;
+            color: #1d4ed8;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        .save-indicator {
+            position: fixed; bottom: 20px; left: 20px; z-index: 200;
+            background: #10b981; color: white; padding: 8px 16px;
+            border-radius: 20px; font-size: 0.8rem; font-weight: bold;
+            opacity: 0; transition: opacity 0.3s; pointer-events: none;
+            box-shadow: 0 4px 12px rgba(16,185,129,0.4);
+        }
+        .save-indicator.show { opacity: 1; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-50 text-gray-800 p-4 md:p-8 min-h-screen">
+
+    <div class="lang-switch no-print">
+        <button class="lang-btn active" onclick="setLanguage('ar')" id="btn-ar">عربي</button>
+        <button class="lang-btn" onclick="setLanguage('en')" id="btn-en">EN</button>
+    </div>
+
+    <div id="saveIndicator" class="save-indicator">💾 <span data-ar="تم الحفظ" data-en="Saved">تم الحفظ</span></div>
+
+    <div id="timer-container" class="max-w-4xl mx-auto mb-4 text-center no-print">
+        <div class="bg-white p-4 rounded-2xl shadow-md inline-block border-2 border-blue-100">
+            <span class="text-gray-600 ml-2" data-ar="⏰ الوقت المتبقي:" data-en="⏰ Time Remaining:">⏰ الوقت المتبقي:</span>
+            <span id="timer" class="text-2xl font-bold text-blue-600 font-mono">45:00</span>
+            <span class="shuffle-badge" data-ar="🎲 أسئلة عشوائية" data-en="🎲 Random Questions">🎲 أسئلة عشوائية</span>
+        </div>
+    </div>
+
+    <div class="max-w-4xl mx-auto mb-6 flex flex-wrap gap-3 justify-center no-print">
+        <button onclick="toggleAnswers()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl font-medium transition shadow cursor-pointer" data-ar="👀 إظهار / إخفاء الإجابات" data-en="👀 Show / Hide Answers">👀 إظهار / إخفاء الإجابات</button>
+        <button onclick="window.print()" class="bg-gray-700 hover:bg-gray-900 text-white px-5 py-2 rounded-xl font-medium transition shadow cursor-pointer" data-ar="🖨️ طباعة" data-en="🖨️ Print">🖨️ طباعة</button>
+        <button onclick="reshuffleExam()" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 py-2 rounded-xl font-medium transition shadow cursor-pointer" data-ar="🔄 أسئلة جديدة" data-en="🔄 New Questions">🔄 أسئلة جديدة</button>
+        <button onclick="clearProgress()" class="bg-red-500 hover:bg-red-600 text-white px-5 py-2 rounded-xl font-medium transition shadow cursor-pointer" data-ar="🗑️ مسح التقدم" data-en="🗑️ Clear Progress">🗑️ مسح التقدم</button>
+    </div>
+
+    <header class="max-w-4xl mx-auto bg-white p-6 rounded-2xl shadow-lg mb-8 border-4 border-blue-400">
+        <div class="text-center">
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2" data-ar="⚖️ مقارنة الأعداد الكلية حتى الملايين ⚖️" data-en="⚖️ Comparing Whole Numbers up to Millions ⚖️">⚖️ مقارنة الأعداد الكلية حتى الملايين ⚖️</h1>
+            <h2 class="text-lg text-blue-600 font-semibold" data-ar="الصف الخامس الابتدائي" data-en="Grade 5">الصف الخامس الابتدائي</h2>
+            <p class="text-sm text-gray-600 mt-2" data-ar="أسئلة ممتعة عن: رموز المقارنة، الترتيب التصاعدي والتنازلي، ومقارنة الأعداد الكبيرة في مواقف حياتية" data-en="Fun questions about: Comparison symbols, Ascending/Descending order, and Comparing large numbers in real-life contexts">أسئلة ممتعة عن: رموز المقارنة، الترتيب التصاعدي والتنازلي، ومقارنة الأعداد الكبيرة في مواقف حياتية</p>
+            <p class="text-xs text-green-600 mt-2 font-semibold" data-ar="💾 يتم حفظ تقدمك تلقائياً - يمكنك التحديث أو تغيير اللغة دون فقدان إجاباتك!" data-en="💾 Your progress is saved automatically - you can refresh or change language without losing your answers!">💾 يتم حفظ تقدمك تلقائياً - يمكنك التحديث أو تغيير اللغة دون فقدان إجاباتك!</p>
+        </div>
+        <div class="mt-4 flex flex-wrap justify-center gap-4 text-sm text-gray-600">
+            <span><span data-ar="📅 التاريخ:" data-en="📅 Date:">📅 التاريخ:</span> <input type="text" id="examDate" class="border-b-2 border-blue-300 bg-transparent w-28 text-center"></span>
+            <span><span data-ar="😊 الاسم:" data-en="😊 Name:">😊 الاسم:</span> <input type="text" id="studentName" class="border-b-2 border-blue-300 bg-transparent w-32 text-center" placeholder="اكتب اسمك"></span>
+            <span><span data-ar="🏫 الشعبة:" data-en="🏫 Class:">🏫 الشعبة:</span> <input type="text" id="studentClass" class="border-b-2 border-blue-300 bg-transparent w-28 text-center" placeholder="الشعبة"></span>
+            <span><span data-ar="⏰ المدة: 45 دقيقة" data-en="⏰ Duration: 45 min">⏰ المدة: 45 دقيقة</span></span>
+            <span><span data-ar="📊 المجموع: 100 درجة" data-en="📊 Total: 100 pts">📊 المجموع: 100 درجة</span></span>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto space-y-8" id="exam-content"></main>
+
+    <div class="text-center no-print pb-8 mt-8">
+        <button onclick="gradeExam()" class="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white text-lg px-10 py-4 rounded-2xl font-bold shadow-xl transition transform hover:scale-105 cursor-pointer" data-ar="🎯 صحح إجاباتي!" data-en="🎯 Grade My Answers!">🎯 صحح إجاباتي!</button>
+    </div>
+
+    <div id="results-panel" class="max-w-4xl mx-auto mt-8 bg-white p-8 rounded-2xl shadow-2xl border-4 border-blue-400 hidden no-print">
+        <h2 class="text-3xl font-bold text-gray-900 mb-6 text-center" data-ar="🏆 نتيجتك يا بطل! 🏆" data-en="🏆 Your Results, Champion! 🏆">🏆 نتيجتك يا بطل! 🏆</h2>
+        <div class="grid md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-blue-50 p-4 rounded-xl text-center"><p data-ar="😊 الاسم" data-en="😊 Name">😊 الاسم</p><p id="res-name" class="font-bold text-xl text-blue-700">-</p></div>
+            <div class="bg-purple-50 p-4 rounded-xl text-center"><p data-ar="📅 التاريخ" data-en="📅 Date">📅 التاريخ</p><p id="res-date" class="font-bold text-xl text-purple-700">-</p></div>
+            <div class="bg-blue-50 p-4 rounded-xl text-center"><p data-ar="🌟 المجموع" data-en="🌟 Score">🌟 المجموع</p><p id="res-total" class="font-bold text-3xl text-blue-600">0 / 100</p></div>
+        </div>
+        <div class="text-center mb-6">
+            <span id="success-badge" class="success-badge grade-excellent">-</span>
+            <p id="success-percent" class="text-4xl font-bold text-blue-600 mt-2">100%</p>
+            <p class="text-sm text-gray-500" data-ar="نسبة النجاح" data-en="Success Rate">نسبة النجاح</p>
+        </div>
+        <div class="bg-gray-50 p-6 rounded-xl mb-6">
+            <h3 class="font-bold text-lg mb-4 text-gray-800" data-ar="📊 أدائك في كل قسم:" data-en="📊 Your Performance:">📊 أدائك في كل قسم:</h3>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-700" data-ar="🎯 أساسيات المقارنة" data-en="🎯 Comparison Basics">🎯 أساسيات المقارنة</span>
+                    <span id="sec1-score" class="font-bold text-blue-600">0/4</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-700" data-ar="⚖️ استخدام الرموز" data-en="⚖️ Using Symbols">⚖️ استخدام الرموز</span>
+                    <span id="sec2-score" class="font-bold text-blue-600">0/4</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-700" data-ar="📊 الترتيب التصاعدي والتنازلي" data-en="📊 Ascending & Descending Order">📊 الترتيب التصاعدي والتنازلي</span>
+                    <span id="sec3-score" class="font-bold text-blue-600">0/4</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-700" data-ar="🔢 أثر القيمة المكانية" data-en="🔢 Place Value Impact">🔢 أثر القيمة المكانية</span>
+                    <span id="sec4-score" class="font-bold text-blue-600">0/4</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-700" data-ar="💡 مسائل كلامية وتطبيقية" data-en="💡 Word Problems & Applications">💡 مسائل كلامية وتطبيقية</span>
+                    <span id="sec5-score" class="font-bold text-blue-600">0/4</span>
+                </div>
+            </div>
+        </div>
+        <div class="text-center mb-6">
+            <button id="sendEmailBtn" onclick="sendResultsToEmail()" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-lg px-8 py-3 rounded-2xl font-bold shadow-xl transition transform hover:scale-105 cursor-pointer" data-ar="📧 أرسل النتيجة للمعلم" data-en="📧 Send Results to Teacher">📧 أرسل النتيجة للمعلم</button>
+            <p id="emailStatus" class="text-sm mt-2 text-center font-medium"></p>
+        </div>
+        <div class="flex gap-3 justify-center">
+            <button onclick="window.print()" class="bg-gray-700 text-white px-6 py-3 rounded-xl font-semibold" data-ar="🖨️ طباعة النتيجة" data-en="🖨️ Print Results">🖨️ طباعة النتيجة</button>
+        </div>
+    </div>
+
+    <footer class="max-w-4xl mx-auto mt-10 mb-8 text-center text-gray-500 text-sm no-print">
+        © <span data-ar="مقارنة الأعداد الكلية" data-en="Comparing Whole Numbers">مقارنة الأعداد الكلية</span> | Mr. Mohammed Hesham ⚖️
+    </footer>
+
+<script>
+// ==================== EmailJS Settings ====================
+const PUBLIC_KEY = "Rb3Lq8tXaFmc5YHUH";
+const SERVICE_ID = "service_w15m64i";
+const TEMPLATE_ID = "template_5b0u2tq";
+const TARGET_EMAIL = "mohammedhesham872@gmail.com";
+
+emailjs.init(PUBLIC_KEY);
+
+// ==================== 💾 نظام حفظ التقدم ====================
+const STORAGE_KEY = 'comparing_numbers_millions_exam_v1';
+const TOTAL_TIME = 2700; // 45 minutes
+const TOTAL_QUESTIONS = 20;
+
+let currentSeed = null;
+let answersVisible = false;
+let saveIndicatorTimeout = null;
+
+function mulberry32(a) {
+    return function() {
+        var t = a += 0x6D2B79F5;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    }
+}
+
+let rng = null;
+
+function showSaveIndicator() {
+    const indicator = document.getElementById('saveIndicator');
+    indicator.classList.add('show');
+    if (saveIndicatorTimeout) clearTimeout(saveIndicatorTimeout);
+    saveIndicatorTimeout = setTimeout(() => {
+        indicator.classList.remove('show');
+    }, 1500);
+}
+
+function saveState(showIndicator = true) {
+    try {
+        const state = {
+            seed: currentSeed,
+            lang: currentLang,
+            studentName: document.getElementById('studentName').value,
+            studentClass: document.getElementById('studentClass').value,
+            examDate: document.getElementById('examDate').value,
+            answers: getSelectedAnswers(),
+            timeRemaining: timeRemaining,
+            answersVisible: answersVisible,
+            savedAt: Date.now()
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        if (showIndicator) showSaveIndicator();
+    } catch (e) {
+        console.error('خطأ في الحفظ:', e);
+    }
+}
+
+function loadState() {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) return JSON.parse(saved);
+    } catch (e) {
+        console.error('خطأ في التحميل:', e);
+    }
+    return null;
+}
+
+function getSelectedAnswers() {
+    const answers = {};
+    for (let i = 0; i < TOTAL_QUESTIONS; i++) {
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        if (selected) answers[i] = selected.value;
+    }
+    return answers;
+}
+
+function restoreAnswers(answers) {
+    if (!answers) return;
+    for (const [idx, val] of Object.entries(answers)) {
+        const radio = document.querySelector(`input[name="q${idx}"][value="${val}"]`);
+        if (radio) radio.checked = true;
+    }
+}
+
+function clearProgress() {
+    const confirmMsg = currentLang === 'ar' 
+        ? '⚠️ هل أنت متأكد من مسح كل التقدم؟ ستفقد جميع إجاباتك!' 
+        : '⚠️ Are you sure you want to clear all progress? You will lose all your answers!';
+    if (confirm(confirmMsg)) {
+        localStorage.removeItem(STORAGE_KEY);
+        location.reload();
+    }
+}
+
+function setupAnswerListeners() {
+    document.getElementById('exam-content').addEventListener('change', (e) => {
+        if (e.target.type === 'radio') saveState();
+    });
+}
+
+function setupInputListeners() {
+    ['studentName', 'studentClass', 'examDate'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', () => saveState(false));
+            el.addEventListener('blur', () => saveState());
+        }
+    });
+}
+
+// ==================== رسومات SVG للمقارنة ====================
+const svgGraphs = {
+    alligator: `<svg class="svg-graph" width="340" height="160" viewBox="0 0 340 160" xmlns="http://www.w3.org/2000/svg">
+        <rect x="5" y="5" width="330" height="150" rx="12" fill="#eff6ff" stroke="#3b82f6" stroke-width="2"/>
+        <text x="170" y="30" text-anchor="middle" font-size="15" fill="#1e40af" font-weight="bold">🐊 قاعدة التمساح الجائع 🐊</text>
+        <text x="170" y="55" text-anchor="middle" font-size="12" fill="#374151">فم التمساح يفتح دائماً تجاه العدد الأكبر!</text>
+        <path d="M 80 80 L 140 100 L 80 120 Z" fill="#10b981" stroke="#047857" stroke-width="2"/>
+        <text x="50" y="105" text-anchor="middle" font-size="20" fill="#1f2937" font-weight="bold" font-family="'Times New Roman', serif">5,000,000</text>
+        <text x="165" y="105" text-anchor="middle" font-size="24" fill="#10b981" font-weight="bold">&gt;</text>
+        <text x="290" y="105" text-anchor="middle" font-size="20" fill="#1f2937" font-weight="bold" font-family="'Times New Roman', serif">4,999,999</text>
+    </svg>`,
+    
+    place_diff: `<svg class="svg-graph" width="340" height="170" viewBox="0 0 340 170" xmlns="http://www.w3.org/2000/svg">
+        <rect x="5" y="5" width="330" height="160" rx="12" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+        <text x="170" y="25" text-anchor="middle" font-size="14" fill="#92400e" font-weight="bold">🔍 نقارن من اليسار (أكبر منزلة)</text>
+        <text x="170" y="55" font-size="18" fill="#1f2937" font-weight="bold" font-family="'Times New Roman', serif">3,456,789</text>
+        <text x="170" y="60" font-size="18" fill="#1f2937" font-weight="bold" font-family="'Times New Roman', serif">3,458,120</text>
+        <line x1="100" y1="45" x2="100" y2="75" stroke="#dc2626" stroke-width="2" stroke-dasharray="4"/>
+        <line x1="120" y1="45" x2="120" y2="75" stroke="#dc2626" stroke-width="2" stroke-dasharray="4"/>
+        <line x1="140" y1="45" x2="140" y2="75" stroke="#dc2626" stroke-width="2" stroke-dasharray="4"/>
+        <line x1="160" y1="45" x2="160" y2="75" stroke="#10b981" stroke-width="3"/>
+        <circle cx="160" cy="60" r="12" fill="none" stroke="#10b981" stroke-width="2"/>
+        <text x="170" y="105" text-anchor="middle" font-size="12" fill="#047857" font-weight="bold">المنزلات متساوية حتى نصل إلى منزلة الألوف</text>
+        <text x="170" y="125" text-anchor="middle" font-size="14" fill="#dc2626" font-weight="bold">6 آلاف &lt; 8 آلاف ⟹ العدد الثاني أكبر</text>
+        <text x="170" y="150" text-anchor="middle" font-size="16" fill="#1e40af" font-weight="bold" font-family="'Times New Roman', serif">3,456,789 &lt; 3,458,120</text>
+    </svg>`,
+
+    number_line_comp: `<svg class="svg-graph" width="340" height="140" viewBox="0 0 340 140" xmlns="http://www.w3.org/2000/svg">
+        <rect x="5" y="5" width="330" height="130" rx="12" fill="#f0fdf4" stroke="#10b981" stroke-width="2"/>
+        <text x="170" y="25" text-anchor="middle" font-size="14" fill="#065f46" font-weight="bold">📏 المقارنة على خط الأعداد</text>
+        <line x1="30" y1="70" x2="310" y2="70" stroke="#065f46" stroke-width="2"/>
+        <polygon points="310,70 303,65 303,75" fill="#065f46"/>
+        <line x1="50" y1="65" x2="50" y2="75" stroke="#065f46" stroke-width="2"/>
+        <line x1="170" y1="65" x2="170" y2="75" stroke="#065f46" stroke-width="2"/>
+        <line x1="290" y1="65" x2="290" y2="75" stroke="#065f46" stroke-width="2"/>
+        <text x="50" y="90" text-anchor="middle" font-size="10" fill="#065f46" font-weight="bold">1,000,000</text>
+        <text x="170" y="90" text-anchor="middle" font-size="10" fill="#065f46" font-weight="bold">2,000,000</text>
+        <text x="290" y="90" text-anchor="middle" font-size="10" fill="#065f46" font-weight="bold">3,000,000</text>
+        <circle cx="110" cy="70" r="6" fill="#3b82f6"/>
+        <text x="110" y="55" text-anchor="middle" font-size="11" fill="#3b82f6" font-weight="bold">1,500,000</text>
+        <circle cx="230" cy="70" r="6" fill="#ef4444"/>
+        <text x="230" y="55" text-anchor="middle" font-size="11" fill="#ef4444" font-weight="bold">2,500,000</text>
+        <text x="170" y="120" text-anchor="middle" font-size="12" fill="#065f46" font-weight="bold">العدد الأيمن دائماً أكبر من الأيسر ➡️</text>
+    </svg>`,
+
+    balance_scale: `<svg class="svg-graph" width="340" height="160" viewBox="0 0 340 160" xmlns="http://www.w3.org/2000/svg">
+        <rect x="5" y="5" width="330" height="150" rx="12" fill="#faf5ff" stroke="#a855f7" stroke-width="2"/>
+        <text x="170" y="25" text-anchor="middle" font-size="14" fill="#6b21a8" font-weight="bold">⚖️ ميزان المقارنة ⚖️</text>
+        <line x1="170" y1="40" x2="170" y2="110" stroke="#6b21a8" stroke-width="3"/>
+        <line x1="170" y1="110" x2="130" y2="130" stroke="#6b21a8" stroke-width="3"/>
+        <line x1="170" y1="110" x2="210" y2="90" stroke="#6b21a8" stroke-width="3"/>
+        <rect x="100" y="130" width="60" height="20" fill="#3b82f6" rx="4"/>
+        <text x="130" y="144" text-anchor="middle" font-size="10" fill="white" font-weight="bold">2,000,000</text>
+        <rect x="180" y="70" width="60" height="20" fill="#ef4444" rx="4"/>
+        <text x="210" y="84" text-anchor="middle" font-size="10" fill="white" font-weight="bold">1,800,000</text>
+        <text x="170" y="145" text-anchor="middle" font-size="12" fill="#6b21a8" font-weight="bold">الجانب الأثقل (الأكبر) يهبط للأسفل</text>
+    </svg>`,
+
+    ascending: `<svg class="svg-graph" width="340" height="150" viewBox="0 0 340 150" xmlns="http://www.w3.org/2000/svg">
+        <rect x="5" y="5" width="330" height="140" rx="12" fill="#ecfdf5" stroke="#10b981" stroke-width="2"/>
+        <text x="170" y="25" text-anchor="middle" font-size="14" fill="#065f46" font-weight="bold">📈 الترتيب التصاعدي (من الأصغر للأكبر)</text>
+        <polygon points="40,110 40,90 80,90 80,70 120,70 120,50 160,50 160,110" fill="#10b981" opacity="0.3"/>
+        <polygon points="40,110 40,90 80,90 80,70 120,70 120,50 160,50 160,110" fill="none" stroke="#065f46" stroke-width="2"/>
+        <text x="60" y="85" text-anchor="middle" font-size="10" fill="#065f46" font-weight="bold">1M</text>
+        <text x="100" y="65" text-anchor="middle" font-size="10" fill="#065f46" font-weight="bold">2M</text>
+        <text x="140" y="45" text-anchor="middle" font-size="10" fill="#065f46" font-weight="bold">3M</text>
+        <text x="220" y="70" font-size="12" fill="#065f46">1,000,000 &lt; 2,000,000 &lt; 3,000,000</text>
+        <text x="220" y="95" font-size="12" fill="#065f46" font-weight="bold">رمز التصاعدي: &lt; (فم التمساح لليمين)</text>
+    </svg>`,
+
+    descending: `<svg class="svg-graph" width="340" height="150" viewBox="0 0 340 150" xmlns="http://www.w3.org/2000/svg">
+        <rect x="5" y="5" width="330" height="140" rx="12" fill="#fef2f2" stroke="#ef4444" stroke-width="2"/>
+        <text x="170" y="25" text-anchor="middle" font-size="14" fill="#991b1b" font-weight="bold">📉 الترتيب التنازلي (من الأكبر للأصغر)</text>
+        <polygon points="40,50 40,70 80,70 80,90 120,90 120,110 160,110 160,50" fill="#ef4444" opacity="0.3"/>
+        <polygon points="40,50 40,70 80,70 80,90 120,90 120,110 160,110 160,50" fill="none" stroke="#991b1b" stroke-width="2"/>
+        <text x="60" y="65" text-anchor="middle" font-size="10" fill="#991b1b" font-weight="bold">3M</text>
+        <text x="100" y="85" text-anchor="middle" font-size="10" fill="#991b1b" font-weight="bold">2M</text>
+        <text x="140" y="105" text-anchor="middle" font-size="10" fill="#991b1b" font-weight="bold">1M</text>
+        <text x="220" y="70" font-size="12" fill="#991b1b">3,000,000 &gt; 2,000,000 &gt; 1,000,000</text>
+        <text x="220" y="95" font-size="12" fill="#991b1b" font-weight="bold">رمز التنازلي: &gt; (فم التمساح لليسار)</text>
+    </svg>`,
+
+    magnify: `<svg class="svg-graph" width="340" height="140" viewBox="0 0 340 140" xmlns="http://www.w3.org/2000/svg">
+        <rect x="5" y="5" width="330" height="130" rx="12" fill="#fff7ed" stroke="#f97316" stroke-width="2"/>
+        <text x="170" y="25" text-anchor="middle" font-size="14" fill="#9a3412" font-weight="bold">🔍 استراتيجية المقارنة الصحيحة</text>
+        <text x="170" y="50" font-size="16" fill="#1f2937" font-weight="bold" font-family="'Times New Roman', serif">4,567,890</text>
+        <circle cx="100" cy="45" r="25" fill="none" stroke="#f97316" stroke-width="3"/>
+        <line x1="118" y1="63" x2="140" y2="85" stroke="#f97316" stroke-width="3"/>
+        <text x="170" y="95" text-anchor="middle" font-size="12" fill="#9a3412">1. ابدأ دائماً من أقصى اليسار (أكبر منزلة)</text>
+        <text x="170" y="115" text-anchor="middle" font-size="12" fill="#9a3412">2. إذا تساوت، انتقل للمنزل التي تليها يميناً</text>
+    </svg>`,
+
+    blocks_comp: `<svg class="svg-graph" width="340" height="160" viewBox="0 0 340 160" xmlns="http://www.w3.org/2000/svg">
+        <rect x="5" y="5" width="330" height="150" rx="12" fill="#f0f9ff" stroke="#0ea5e9" stroke-width="2"/>
+        <text x="170" y="25" text-anchor="middle" font-size="14" fill="#0369a1" font-weight="bold">🧱 مقارنة باستخدام النماذج</text>
+        <rect x="40" y="50" width="40" height="80" fill="#3b82f6" stroke="#1d4ed8" stroke-width="2"/>
+        <text x="60" y="95" text-anchor="middle" font-size="10" fill="white" font-weight="bold">2M</text>
+        <rect x="100" y="70" width="40" height="60" fill="#60a5fa" stroke="#2563eb" stroke-width="2"/>
+        <text x="120" y="105" text-anchor="middle" font-size="10" fill="white" font-weight="bold">1.5M</text>
+        <text x="190" y="95" font-size="24" fill="#0369a1" font-weight="bold">&gt;</text>
+        <text x="170" y="140" text-anchor="middle" font-size="12" fill="#0369a1">العمود الأطول يمثل العدد الأكبر</text>
+    </svg>`,
+
+    real_life_comp: `<svg class="svg-graph" width="340" height="160" viewBox="0 0 340 160" xmlns="http://www.w3.org/2000/svg">
+        <rect x="5" y="5" width="330" height="150" rx="12" fill="#f0fdf4" stroke="#22c55e" stroke-width="2"/>
+        <text x="170" y="25" text-anchor="middle" font-size="14" fill="#15803d" font-weight="bold">🌍 مقارنة في الحياة الواقعية</text>
+        <rect x="20" y="40" width="140" height="90" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+        <text x="90" y="60" text-anchor="middle" font-size="24">🏙️</text>
+        <text x="90" y="80" text-anchor="middle" font-size="11" fill="#15803d" font-weight="bold">مدينة أ</text>
+        <text x="90" y="100" text-anchor="middle" font-size="14" fill="#15803d" font-weight="bold" font-family="'Times New Roman', serif">2,450,000</text>
+        <text x="90" y="120" text-anchor="middle" font-size="10" fill="#15803d">نسمة</text>
+        
+        <rect x="180" y="40" width="140" height="90" rx="8" fill="#fee2e2" stroke="#ef4444" stroke-width="2"/>
+        <text x="250" y="60" text-anchor="middle" font-size="24">🏙️</text>
+        <text x="250" y="80" text-anchor="middle" font-size="11" fill="#991b1b" font-weight="bold">مدينة ب</text>
+        <text x="250" y="100" text-anchor="middle" font-size="14" fill="#991b1b" font-weight="bold" font-family="'Times New Roman', serif">2,540,000</text>
+        <text x="250" y="120" text-anchor="middle" font-size="10" fill="#991b1b">نسمة</text>
+        <text x="170" y="145" text-anchor="middle" font-size="12" fill="#15803d" font-weight="bold">مدينة ب أكبر سكاناً (2,540,000 &gt; 2,450,000)</text>
+    </svg>`,
+
+    rule_chart: `<svg class="svg-graph" width="340" height="170" viewBox="0 0 340 170" xmlns="http://www.w3.org/2000/svg">
+        <rect x="5" y="5" width="330" height="160" rx="12" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+        <text x="170" y="25" text-anchor="middle" font-size="14" fill="#92400e" font-weight="bold">📜 قواعد ذهبية للمقارنة</text>
+        <rect x="20" y="40" width="300" height="35" rx="6" fill="#fff" stroke="#f59e0b"/>
+        <text x="170" y="62" text-anchor="middle" font-size="12" fill="#92400e">1. العدد ذو المنازل الأكثر هو دائماً الأكبر (مثال: 1,000,000 &gt; 999,999)</text>
+        <rect x="20" y="85" width="300" height="35" rx="6" fill="#fff" stroke="#f59e0b"/>
+        <text x="170" y="107" text-anchor="middle" font-size="12" fill="#92400e">2. إذا تساوت في عدد المنازل، قارن من اليسار لليمين حتى تجد فرقاً</text>
+        <rect x="20" y="130" width="300" height="30" rx="6" fill="#fff" stroke="#f59e0b"/>
+        <text x="170" y="149" text-anchor="middle" font-size="12" fill="#92400e">3. رموز المقارنة: &gt; (أكبر من) ، &lt; (أصغر من) ، = (يساوي)</text>
+    </svg>`
+};
+
+const originalExamData = {
+    sections: [
+        {
+            id: 'sec1',
+            title: { ar: '🎯 الجزء الأول: أساسيات المقارنة', en: '🎯 Part 1: Comparison Basics' },
+            questions: [
+                {
+                    q: { ar: 'أي الأعداد التالية هو الأكبر؟', en: 'Which of the following numbers is the largest?' },
+                    svg: svgGraphs.rule_chart,
+                    options: [
+                        { ar: '<span class="math-display">999,999</span>', en: '<span class="math-display">999,999</span>' },
+                        { ar: '<span class="math-display">1,000,000</span>', en: '<span class="math-display">1,000,000</span>' },
+                        { ar: '<span class="math-display">899,999</span>', en: '<span class="math-display">899,999</span>' },
+                        { ar: '<span class="math-display">99,999</span>', en: '<span class="math-display">99,999</span>' }
+                    ],
+                    correct: 1,
+                    answer: { ar: '1,000,000 هو العدد الوحيد المكون من 7 منازل، بينما البقية 6 منازل أو أقل.', en: '1,000,000 is the only 7-digit number, making it the largest.' }
+                },
+                {
+                    q: { ar: 'عند مقارنة عددين، من أين نبدأ المقارنة؟', en: 'When comparing two numbers, where do we start?' },
+                    svg: svgGraphs.magnify,
+                    options: [
+                        { ar: 'من منزلة الآحاد (أقصى اليمين)', en: 'From the ones place (far right)' },
+                        { ar: 'من أكبر منزلة (أقصى اليسار)', en: 'From the highest place value (far left)' },
+                        { ar: 'من وسط العدد', en: 'From the middle of the number' },
+                        { ar: 'لا يهم، من أي منزلة', en: 'It does not matter, any place' }
+                    ],
+                    correct: 1,
+                    answer: { ar: 'نبدأ دائماً من أكبر منزلة (أقصى اليسار) وننتقل يميناً حتى نجد فرقاً.', en: 'We always start from the highest place value (far left) and move right until we find a difference.' }
+                },
+                {
+                    q: { ar: 'ماذا يعني الرمز <span class="math-display">&gt;</span>؟', en: 'What does the symbol <span class="math-display">&gt;</span> mean?' },
+                    svg: svgGraphs.alligator,
+                    options: [
+                        { ar: 'أصغر من', en: 'Less than' },
+                        { ar: 'يساوي', en: 'Equals' },
+                        { ar: 'أكبر من', en: 'Greater than' },
+                        { ar: 'لا يساوي', en: 'Not equal to' }
+                    ],
+                    correct: 2,
+                    answer: { ar: 'الرمز > يعني "أكبر من"، وفمه المفتوح يشير دائماً للعدد الأكبر.', en: 'The symbol > means "greater than", and its open mouth always points to the larger number.' }
+                },
+                {
+                    q: { ar: 'أي عبارة صحيحة؟', en: 'Which statement is true?' },
+                    options: [
+                        { ar: '<span class="math-display">5,000,000 &lt; 4,999,999</span>', en: '<span class="math-display">5,000,000 &lt; 4,999,999</span>' },
+                        { ar: '<span class="math-display">5,000,000 &gt; 4,999,999</span>', en: '<span class="math-display">5,000,000 &gt; 4,999,999</span>' },
+                        { ar: '<span class="math-display">5,000,000 = 4,999,999</span>', en: '<span class="math-display">5,000,000 = 4,999,999</span>' },
+                        { ar: 'لا يمكن مقارنتهما', en: 'They cannot be compared' }
+                    ],
+                    correct: 1,
+                    answer: { ar: '5 ملايين أكبر من 4 ملايين و999 ألفاً و999.', en: '5 million is greater than 4 million, 999 thousand, 999.' }
+                }
+            ]
+        },
+        {
+            id: 'sec2',
+            title: { ar: '⚖️ الجزء الثاني: استخدام الرموز', en: '⚖️ Part 2: Using Symbols' },
+            questions: [
+                {
+                    q: { ar: 'اختر الرمز الصحيح: <span class="math-display">3,456,789</span> ◻ <span class="math-display">3,456,798</span>', en: 'Choose the correct symbol: <span class="math-display">3,456,789</span> ◻ <span class="math-display">3,456,798</span>' },
+                    svg: svgGraphs.place_diff,
+                    options: [
+                        { ar: '<span class="math-display">&gt;</span>', en: '<span class="math-display">&gt;</span>' },
+                        { ar: '<span class="math-display">&lt;</span>', en: '<span class="math-display">&lt;</span>' },
+                        { ar: '<span class="math-display">=</span>', en: '<span class="math-display">=</span>' },
+                        { ar: '<span class="math-display">+</span>', en: '<span class="math-display">+</span>' }
+                    ],
+                    correct: 1,
+                    answer: { ar: 'المنزلات متساوية حتى نصل للعشرات: 8 عشرات < 9 عشرات.', en: 'Places are equal until we reach the tens: 8 tens < 9 tens.' }
+                },
+                {
+                    q: { ar: 'اختر الرمز الصحيح: <span class="math-display">7,000,000</span> ◻ <span class="math-display">6,999,999</span>', en: 'Choose the correct symbol: <span class="math-display">7,000,000</span> ◻ <span class="math-display">6,999,999</span>' },
+                    options: [
+                        { ar: '<span class="math-display">&lt;</span>', en: '<span class="math-display">&lt;</span>' },
+                        { ar: '<span class="math-display">=</span>', en: '<span class="math-display">=</span>' },
+                        { ar: '<span class="math-display">&gt;</span>', en: '<span class="math-display">&gt;</span>' },
+                        { ar: '<span class="math-display">-</span>', en: '<span class="math-display">-</span>' }
+                    ],
+                    correct: 2,
+                    answer: { ar: '7 ملايين أكبر من 6 ملايين (أول رقم من اليسار يحدد ذلك).', en: '7 million is greater than 6 million (the first digit from the left determines this).' }
+                },
+                {
+                    q: { ar: 'ما الرمز الذي يجعل العبارة صحيحة: <span class="math-display">1,234,567</span> ◻ <span class="math-display">1,234,567</span>', en: 'Which symbol makes this true: <span class="math-display">1,234,567</span> ◻ <span class="math-display">1,234,567</span>' },
+                    options: [
+                        { ar: '<span class="math-display">&gt;</span>', en: '<span class="math-display">&gt;</span>' },
+                        { ar: '<span class="math-display">&lt;</span>', en: '<span class="math-display">&lt;</span>' },
+                        { ar: '<span class="math-display">=</span>', en: '<span class="math-display">=</span>' },
+                        { ar: '<span class="math-display">≠</span>', en: '<span class="math-display">≠</span>' }
+                    ],
+                    correct: 2,
+                    answer: { ar: 'العددان متطابقان تماماً في جميع المنازل.', en: 'The numbers are exactly identical in all place values.' }
+                },
+                {
+                    q: { ar: 'قارن: <span class="math-display">4,000,000 + 50,000</span> ◻ <span class="math-display">4,500,000</span>', en: 'Compare: <span class="math-display">4,000,000 + 50,000</span> ◻ <span class="math-display">4,500,000</span>' },
+                    options: [
+                        { ar: '<span class="math-display">&gt;</span>', en: '<span class="math-display">&gt;</span>' },
+                        { ar: '<span class="math-display">&lt;</span>', en: '<span class="math-display">&lt;</span>' },
+                        { ar: '<span class="math-display">=</span>', en: '<span class="math-display">=</span>' },
+                        { ar: 'لا يمكن التحديد', en: 'Cannot be determined' }
+                    ],
+                    correct: 2,
+                    answer: { ar: '4,000,000 + 50,000 = 4,050,000، وهو أصغر من 4,500,000. (انتظر، 4,050,000 < 4,500,000). تصحيح: الخيار الصحيح هو <.', en: '4,000,000 + 50,000 = 4,050,000, which is less than 4,500,000. So < is correct.' } 
+                    // Correction applied directly to correct index below
+                }
+            ]
+        },
+        {
+            id: 'sec3',
+            title: { ar: '📊 الجزء الثالث: الترتيب التصاعدي والتنازلي', en: '📊 Part 3: Ascending & Descending Order' },
+            questions: [
+                {
+                    q: { ar: 'رتّب الأعداد التالية تصاعدياً (من الأصغر للأكبر): <span class="math-display">2,100,000</span>، <span class="math-display">2,010,000</span>، <span class="math-display">2,001,000</span>', en: 'Order ascending (smallest to largest): <span class="math-display">2,100,000</span>, <span class="math-display">2,010,000</span>, <span class="math-display">2,001,000</span>' },
+                    svg: svgGraphs.ascending,
+                    options: [
+                        { ar: '<span class="math-display">2,001,000 &lt; 2,010,000 &lt; 2,100,000</span>', en: '<span class="math-display">2,001,000 &lt; 2,010,000 &lt; 2,100,000</span>' },
+                        { ar: '<span class="math-display">2,100,000 &lt; 2,010,000 &lt; 2,001,000</span>', en: '<span class="math-display">2,100,000 &lt; 2,010,000 &lt; 2,001,000</span>' },
+                        { ar: '<span class="math-display">2,010,000 &lt; 2,001,000 &lt; 2,100,000</span>', en: '<span class="math-display">2,010,000 &lt; 2,001,000 &lt; 2,100,000</span>' },
+                        { ar: '<span class="math-display">2,001,000 &lt; 2,100,000 &lt; 2,010,000</span>', en: '<span class="math-display">2,001,000 &lt; 2,100,000 &lt; 2,010,000</span>' }
+                    ],
+                    correct: 0,
+                    answer: { ar: 'نقارن عشرات الألوف: 0 < 1 < 10.', en: 'Compare ten thousands: 0 < 1 < 10.' }
+                },
+                {
+                    q: { ar: 'رتّب الأعداد تنازلياً (من الأكبر للأصغر): <span class="math-display">5,555,555</span>، <span class="math-display">5,555,550</span>، <span class="math-display">5,555,505</span>', en: 'Order descending (largest to smallest): <span class="math-display">5,555,555</span>, <span class="math-display">5,555,550</span>, <span class="math-display">5,555,505</span>' },
+                    svg: svgGraphs.descending,
+                    options: [
+                        { ar: '<span class="math-display">5,555,505 &gt; 5,555,550 &gt; 5,555,555</span>', en: '<span class="math-display">5,555,505 &gt; 5,555,550 &gt; 5,555,555</span>' },
+                        { ar: '<span class="math-display">5,555,555 &gt; 5,555,550 &gt; 5,555,505</span>', en: '<span class="math-display">5,555,555 &gt; 5,555,550 &gt; 5,555,505</span>' },
+                        { ar: '<span class="math-display">5,555,550 &gt; 5,555,555 &gt; 5,555,505</span>', en: '<span class="math-display">5,555,550 &gt; 5,555,555 &gt; 5,555,505</span>' },
+                        { ar: '<span class="math-display">5,555,555 &gt; 5,555,505 &gt; 5,555,550</span>', en: '<span class="math-display">5,555,555 &gt; 5,555,505 &gt; 5,555,550</span>' }
+                    ],
+                    correct: 1,
+                    answer: { ar: 'نقارن من اليمين: 5 > 0 في منزلة العشرات، و 5 > 0 في منزلة الآحاد.', en: 'Compare from right: 5 > 0 in tens, and 5 > 0 in ones.' }
+                },
+                {
+                    q: { ar: 'ما العدد الذي يقع في المنتصف عند ترتيب هذه الأعداد تصاعدياً؟ <span class="math-display">3,000,000</span>، <span class="math-display">3,100,000</span>، <span class="math-display">3,010,000</span>', en: 'Which number is in the middle when ordered ascending? <span class="math-display">3,000,000</span>, <span class="math-display">3,100,000</span>, <span class="math-display">3,010,000</span>' },
+                    options: [
+                        { ar: '<span class="math-display">3,000,000</span>', en: '<span class="math-display">3,000,000</span>' },
+                        { ar: '<span class="math-display">3,100,000</span>', en: '<span class="math-display">3,100,000</span>' },
+                        { ar: '<span class="math-display">3,010,000</span>', en: '<span class="math-display">3,010,000</span>' },
+                        { ar: 'لا يوجد عدد في المنتصف', en: 'No number is in the middle' }
+                    ],
+                    correct: 2,
+                    answer: { ar: 'الترتيب هو: 3,000,000 < 3,010,000 < 3,100,000. العدد الأوسط هو 3,010,000.', en: 'Order is: 3,000,000 < 3,010,000 < 3,100,000. Middle is 3,010,000.' }
+                },
+                {
+                    q: { ar: 'أي مجموعة مرتبة تصاعدياً بشكل صحيح؟', en: 'Which group is ordered correctly in ascending order?' },
+                    options: [
+                        { ar: '<span class="math-display">1M, 2M, 1.5M</span>', en: '<span class="math-display">1M, 2M, 1.5M</span>' },
+                        { ar: '<span class="math-display">1M, 1.5M, 2M</span>', en: '<span class="math-display">1M, 1.5M, 2M</span>' },
+                        { ar: '<span class="math-display">2M, 1.5M, 1M</span>', en: '<span class="math-display">2M, 1.5M, 1M</span>' },
+                        { ar: '<span class="math-display">1.5M, 1M, 2M</span>', en: '<span class="math-display">1.5M, 1M, 2M</span>' }
+                    ],
+                    correct: 1,
+                    answer: { ar: '1,000,000 < 1,500,000 < 2,000,000 هو الترتيب التصاعدي الصحيح.', en: '1,000,000 < 1,500,000 < 2,000,000 is the correct ascending order.' }
+                }
+            ]
+        },
+        {
+            id: 'sec4',
+            title: { ar: '🔢 الجزء الرابع: أثر القيمة المكانية', en: '🔢 Part 4: Place Value Impact' },
+            questions: [
+                {
+                    q: { ar: 'ما أكبر رقم يمكن وضعه في الفراغ لجعل العبارة صحيحة: <span class="math-display">4, _ 23,000 < 4,123,000</span>', en: 'What is the largest digit to make this true: <span class="math-display">4, _ 23,000 < 4,123,000</span>' },
+                    svg: svgGraphs.blocks_comp,
+                    options: [
+                        { ar: '<span class="math-display">1</span>', en: '<span class="math-display">1</span>' },
+                        { ar: '<span class="math-display">0</span>', en: '<span class="math-display">0</span>' },
+                        { ar: '<span class="math-display">2</span>', en: '<span class="math-display">2</span>' },
+                        { ar: '<span class="math-display">9</span>', en: '<span class="math-display">9</span>' }
+                    ],
+                    correct: 1,
+                    answer: { ar: 'لكي يكون العدد أصغر، يجب أن يكون رقم مئات الألوف أقل من 1. الرقم الوحيد الأقل من 1 هو 0.', en: 'To be smaller, the hundred thousands digit must be less than 1. The only digit less than 1 is 0.' }
+                },
+                {
+                    q: { ar: 'باستخدام الأرقام (5, 0, 9, 1, 2, 3, 4) مرة واحدة، ما هو أكبر عدد ممكن؟', en: 'Using digits (5, 0, 9, 1, 2, 3, 4) once, what is the largest possible number?' },
+                    options: [
+                        { ar: '<span class="math-display">9,543,210</span>', en: '<span class="math-display">9,543,210</span>' },
+                        { ar: '<span class="math-display">1,023,459</span>', en: '<span class="math-display">1,023,459</span>' },
+                        { ar: '<span class="math-display">9,543,201</span>', en: '<span class="math-display">9,543,201</span>' },
+                        { ar: '<span class="math-display">5,943,210</span>', en: '<span class="math-display">5,943,210</span>' }
+                    ],
+                    correct: 0,
+                    answer: { ar: 'نرتب الأرقام من الأكبر للأصغر من اليسار لليمين للحصول على أكبر قيمة.', en: 'Arrange digits from largest to smallest from left to right for the largest value.' }
+                },
+                {
+                    q: { ar: 'باستخدام الأرقام (7, 0, 2, 8, 1, 5, 3) مرة واحدة، ما هو أصغر عدد ممكن (بدون صفر في البداية)؟', en: 'Using digits (7, 0, 2, 8, 1, 5, 3) once, what is the smallest possible number (no leading zero)?' },
+                    options: [
+                        { ar: '<span class="math-display">1,023,578</span>', en: '<span class="math-display">1,023,578</span>' },
+                        { ar: '<span class="math-display">0,123,578</span>', en: '<span class="math-display">0,123,578</span>' },
+                        { ar: '<span class="math-display">1,235,780</span>', en: '<span class="math-display">1,235,780</span>' },
+                        { ar: '<span class="math-display">8,753,210</span>', en: '<span class="math-display">8,753,210</span>' }
+                    ],
+                    correct: 0,
+                    answer: { ar: 'نبدأ بأصغر رقم غير الصفر (1)، ثم نرتب الباقي تصاعدياً: 0, 2, 3, 5, 7, 8.', en: 'Start with the smallest non-zero digit (1), then arrange the rest ascending: 0, 2, 3, 5, 7, 8.' }
+                },
+                {
+                    q: { ar: 'قيمة الرقم 6 في <span class="math-display">6,123,456</span> مقارنة بقيمته في <span class="math-display">1,623,456</span> هي:', en: 'The value of 6 in <span class="math-display">6,123,456</span> compared to <span class="math-display">1,623,456</span> is:' },
+                    options: [
+                        { ar: 'أكبر بـ 10 مرات', en: '10 times greater' },
+                        { ar: 'أصغر بـ 10 مرات', en: '10 times smaller' },
+                        { ar: 'متساوية', en: 'Equal' },
+                        { ar: 'أكبر بـ 100 مرة', en: '100 times greater' }
+                    ],
+                    correct: 0,
+                    answer: { ar: 'في الأول قيمته 6,000,000 (ملايين)، وفي الثاني 600,000 (مئات ألوف). 6,000,000 أكبر بـ 10 مرات من 600,000.', en: 'In the first, it is 6,000,000 (millions); in the second, 600,000 (hundred thousands). 6M is 10x 600K.' }
+                }
+            ]
+        },
+        {
+            id: 'sec5',
+            title: { ar: '💡 الجزء الخامس: مسائل كلامية وتطبيقية', en: '💡 Part 5: Word Problems & Applications' },
+            questions: [
+                {
+                    q: { ar: 'سكان المدينة (أ) <span class="math-display">2,450,000</span> نسمة، وسكان المدينة (ب) <span class="math-display">2,540,000</span> نسمة. أي مدينة أكبر سكاناً؟', en: 'City A has <span class="math-display">2,450,000</span> people, City B has <span class="math-display">2,540,000</span>. Which city has a larger population?' },
+                    svg: svgGraphs.real_life_comp,
+                    options: [
+                        { ar: 'المدينة (أ)', en: 'City A' },
+                        { ar: 'المدينة (ب)', en: 'City B' },
+                        { ar: 'متساويتان', en: 'They are equal' },
+                        { ar: 'لا يمكن التحديد', en: 'Cannot be determined' }
+                    ],
+                    correct: 1,
+                    answer: { ar: '2,540,000 > 2,450,000 لأن 5 عشرات ألوف > 4 عشرات ألوف.', en: '2,540,000 > 2,450,000 because 5 ten thousands > 4 ten thousands.' }
+                },
+                {
+                    q: { ar: 'ربح الشركة الأولى <span class="math-display">5,750,000</span> ريال، وربح الشركة الثانية <span class="math-display">5,705,000</span> ريال. ما فرق الربح تقريباً؟', en: 'Company 1 profit: <span class="math-display">5,750,000</span> SAR, Company 2 profit: <span class="math-display">5,705,000</span> SAR. What is the approximate difference?' },
+                    options: [
+                        { ar: '<span class="math-display">5,000</span> ريال', en: '<span class="math-display">5,000</span> SAR' },
+                        { ar: '<span class="math-display">45,000</span> ريال', en: '<span class="math-display">45,000</span> SAR' },
+                        { ar: '<span class="math-display">50,000</span> ريال', en: '<span class="math-display">50,000</span> SAR' },
+                        { ar: '<span class="math-display">500,000</span> ريال', en: '<span class="math-display">500,000</span> SAR' }
+                    ],
+                    correct: 1,
+                    answer: { ar: '5,750,000 - 5,705,000 = 45,000 ريال.', en: '5,750,000 - 5,705,000 = 45,000 SAR.' }
+                },
+                {
+                    q: { ar: 'ميزانية مشروع هي <span class="math-display">3,200,000</span> ريال. التكلفة المتوقعة <span class="math-display">3,250,000</span> ريال. هل الميزانية كافية؟', en: 'Project budget is <span class="math-display">3,200,000</span> SAR. Expected cost is <span class="math-display">3,250,000</span> SAR. Is the budget enough?' },
+                    options: [
+                        { ar: 'نعم، وهناك فائض', en: 'Yes, and there is a surplus' },
+                        { ar: 'نعم، بالضبط', en: 'Yes, exactly' },
+                        { ar: 'لا، هناك عجز قدره 50,000 ريال', en: 'No, there is a deficit of 50,000 SAR' },
+                        { ar: 'لا، هناك عجز قدره 500,000 ريال', en: 'No, there is a deficit of 500,000 SAR' }
+                    ],
+                    correct: 2,
+                    answer: { ar: '3,200,000 < 3,250,000، إذن الميزانية غير كافية، والعجز = 50,000 ريال.', en: '3,200,000 < 3,250,000, so budget is not enough. Deficit = 50,000 SAR.' }
+                },
+                {
+                    q: { ar: 'مسافة الكوكب (س) عن الشمس <span class="math-display">149,600,000</span> كم، والكوكب (ص) <span class="math-display">227,900,000</span> كم. أيهما أقرب للشمس؟', en: 'Planet X distance: <span class="math-display">149,600,000</span> km, Planet Y: <span class="math-display">227,900,000</span> km. Which is closer to the sun?' },
+                    options: [
+                        { ar: 'الكوكب (س)', en: 'Planet X' },
+                        { ar: 'الكوكب (ص)', en: 'Planet Y' },
+                        { ar: 'على نفس المسافة', en: 'Same distance' },
+                        { ar: 'لا يمكن المقارنة', en: 'Cannot be compared' }
+                    ],
+                    correct: 0,
+                    answer: { ar: 'الأقرب هو صاحب المسافة الأصغر. 149,600,000 < 227,900,000.', en: 'Closer means smaller distance. 149,600,000 < 227,900,000.' }
+                }
+            ]
+        }
+    ]
+};
+
+// Fix for Q4 in Sec2 logic
+originalExamData.sections[1].questions[3].correct = 1; // < is index 1
+
+function shuffleArray(array) {
+    const arr = [...array];
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
+let examData;
+let correctAnswersMap = {};
+let currentLang = 'ar';
+let timeRemaining = TOTAL_TIME;
+let timerInterval;
+
+function prepareShuffledExam() {
+    rng = mulberry32(currentSeed);
+    examData = JSON.parse(JSON.stringify(originalExamData));
+    correctAnswersMap = {};
+    let globalIdx = 0;
+    
+    examData.sections.forEach((section) => {
+        section.questions = shuffleArray(section.questions);
+        section.questions.forEach((q) => {
+            const optionsWithCorrect = q.options.map((opt, idx) => ({
+                option: opt,
+                isCorrect: idx === q.correct
+            }));
+            const shuffledOptions = shuffleArray(optionsWithCorrect);
+            q.options = shuffledOptions.map(o => o.option);
+            const newCorrectIndex = shuffledOptions.findIndex(o => o.isCorrect);
+            q.correct = newCorrectIndex;
+            correctAnswersMap[globalIdx] = String.fromCharCode(97 + newCorrectIndex);
+            globalIdx++;
+        });
+    });
+}
+
+function reshuffleExam() {
+    const confirmMsg = currentLang === 'ar' 
+        ? '🔄 سيتم إنشاء أسئلة جديدة ومسح إجاباتك الحالية. هل أنت متأكد؟' 
+        : '🔄 New questions will be generated and your current answers will be cleared. Are you sure?';
+    if (confirm(confirmMsg)) {
+        currentSeed = Date.now();
+        timeRemaining = TOTAL_TIME;
+        answersVisible = false;
+        prepareShuffledExam();
+        renderExam();
+        saveState();
+        alert(currentLang === 'ar' ? '🎲 تم تغيير الأسئلة! حظاً موفقاً! 🍀' : '🎲 Questions changed! Good luck! 🍀');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
+
+function setLanguage(lang) {
+    currentLang = lang;
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    document.getElementById('btn-ar').classList.toggle('active', lang === 'ar');
+    document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+    document.body.classList.toggle('en-mode', lang === 'en');
+    
+    document.querySelectorAll('[data-ar][data-en]').forEach(el => {
+        el.innerHTML = lang === 'ar' ? el.getAttribute('data-ar') : el.getAttribute('data-en');
+    });
+    renderExam();
+    saveState(false);
+}
+
+function renderExam() {
+    const container = document.getElementById('exam-content');
+    const labels = {
+        ar: { option: ['أ', 'ب', 'ج', 'د'], answer: '✅ الإجابة:' },
+        en: { option: ['A', 'B', 'C', 'D'], answer: '✅ Answer:' }
+    };
+    const lbl = labels[currentLang];
+    const isRTL = currentLang === 'ar';
+    let html = '';
+    let globalIdx = 0;
+    
+    examData.sections.forEach((section) => {
+        html += `<section class="bg-white p-6 rounded-2xl shadow-lg border-2 border-blue-100">
+            <h2 class="text-xl font-bold mb-4 text-blue-700">${section.title[currentLang]}</h2>
+            <ol class="space-y-4 text-sm">`;
+            
+        section.questions.forEach((q) => {
+            const borderSide = isRTL ? 'border-r-4 pr-4' : 'border-l-4 pl-4';
+            html += `<li class="${borderSide} border-blue-400 py-2" id="q-${globalIdx}">
+                <strong>${globalIdx + 1}.</strong> ${q.q[currentLang]}<br>`;
+            if (q.svg) html += `<div class="graph-container">${q.svg}</div>`;
+                    
+            q.options.forEach((opt, oIdx) => {
+                const radioSide = isRTL ? 'mr-4 ml-2' : 'ml-4 mr-2';
+                html += `<label class="cursor-pointer block mt-1 ${isRTL ? 'mr-4' : 'ml-4'} hover:bg-blue-50 rounded-lg p-1 transition">
+                    <input type="radio" name="q${globalIdx}" value="${String.fromCharCode(97 + oIdx)}" class="${radioSide}"> 
+                    ${lbl.option[oIdx]}) ${opt[currentLang]}
+                </label>`;
+            });
+            html += `<div class="answer-box text-green-700 mt-2 font-medium ${answersVisible ? '' : 'hidden'} bg-green-50 rounded-lg p-2">
+                ${lbl.answer} ${lbl.option[q.correct]}) ${q.options[q.correct][currentLang]} — ${q.answer[currentLang]}
+            </div></li>`;
+            globalIdx++;
+        });
+        html += `</ol></section>`;
+    });
+    container.innerHTML = html;
+}
+
+function startTimer() {
+    document.getElementById('timer-container').style.display = 'block';
+    updateTimerDisplay();
+    timerInterval = setInterval(() => {
+        timeRemaining--;
+        updateTimerDisplay();
+        if (timeRemaining % 5 === 0) saveState(false);
+        if (timeRemaining <= 300) document.getElementById('timer').classList.add('timer-warning');
+        if (timeRemaining <= 0) {
+            clearInterval(timerInterval);
+            alert(currentLang === 'ar' ? "⏰ انتهى الوقت! سأصحح إجاباتك الآن." : "⏰ Time's up! Let me grade your answers.");
+            gradeExam();
+        }
+    }, 1000);
+}
+
+function updateTimerDisplay() {
+    const minutes = Math.floor(timeRemaining / 60);
+    const seconds = timeRemaining % 60;
+    document.getElementById('timer').textContent = `${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+}
+
+function toggleAnswers() {
+    answersVisible = !answersVisible;
+    document.querySelectorAll('.answer-box').forEach(el => {
+        el.classList.toggle('hidden', !answersVisible);
+    });
+    saveState(false);
+}
+
+function gradeExam() {
+    let correctCount = 0;
+    let sec1 = 0, sec2 = 0, sec3 = 0, sec4 = 0, sec5 = 0;
+    
+    for (let i = 0; i < TOTAL_QUESTIONS; i++) {
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        const li = document.getElementById(`q-${i}`);
+        const correctAnswer = correctAnswersMap[i];
+        if (li) {
+            const isCorrect = selected && selected.value === correctAnswer;
+            if (isCorrect) {
+                correctCount++;
+                li.classList.add('correct');
+                li.classList.remove('incorrect');
+                if (i < 4) sec1++;
+                else if (i < 8) sec2++;
+                else if (i < 12) sec3++;
+                else if (i < 16) sec4++;
+                else sec5++;
+            } else {
+                li.classList.add('incorrect');
+                li.classList.remove('correct');
+            }
+        }
+    }
+    const score = Math.round((correctCount / TOTAL_QUESTIONS) * 100);
+    document.getElementById('res-total').textContent = `${score} / 100`;
+    document.getElementById('res-name').textContent = document.getElementById('studentName').value || (currentLang === 'ar' ? 'بطل' : 'Champion');
+    document.getElementById('res-date').textContent = new Date().toLocaleDateString(currentLang === 'ar' ? 'ar-AE' : 'en-US');
+    document.getElementById('sec1-score').textContent = `${sec1}/4`;
+    document.getElementById('sec2-score').textContent = `${sec2}/4`;
+    document.getElementById('sec3-score').textContent = `${sec3}/4`;
+    document.getElementById('sec4-score').textContent = `${sec4}/4`;
+    document.getElementById('sec5-score').textContent = `${sec5}/4`;
+    
+    const badge = document.getElementById('success-badge');
+    document.getElementById('success-percent').textContent = `${score}%`;
+    if (currentLang === 'ar') {
+        if (score >= 90) { badge.textContent = '🌟 ممتاز جداً! 🌟'; badge.className = 'success-badge grade-excellent'; }
+        else if (score >= 75) { badge.textContent = '👏 ممتاز! 👏'; badge.className = 'success-badge grade-good'; }
+        else if (score >= 50) { badge.textContent = '👍 جيد'; badge.className = 'success-badge grade-pass'; }
+        else { badge.textContent = '💪 حاول مرة أخرى'; badge.className = 'success-badge grade-fail'; }
+    } else {
+        if (score >= 90) { badge.textContent = '🌟 Outstanding! 🌟'; badge.className = 'success-badge grade-excellent'; }
+        else if (score >= 75) { badge.textContent = '👏 Excellent! 👏'; badge.className = 'success-badge grade-good'; }
+        else if (score >= 50) { badge.textContent = '👍 Good'; badge.className = 'success-badge grade-pass'; }
+        else { badge.textContent = '💪 Try Again'; badge.className = 'success-badge grade-fail'; }
+    }
+    document.getElementById('results-panel').classList.remove('hidden');
+    document.getElementById('results-panel').scrollIntoView({ behavior: 'smooth' });
+    if (timerInterval) clearInterval(timerInterval);
+}
+
+function sendResultsToEmail() {
+    const btn = document.getElementById('sendEmailBtn');
+    const status = document.getElementById('emailStatus');
+    btn.disabled = true;
+    btn.textContent = currentLang === 'ar' ? '⏳ جاري الإرسال...' : '📤 Sending...';
+
+    const name = document.getElementById('studentName').value || 'N/A';
+    const studentClass = document.getElementById('studentClass').value || 'N/A';
+    const date = document.getElementById('examDate').value || new Date().toLocaleDateString();
+    const score = document.getElementById('res-total').textContent;
+    const successRate = document.getElementById('success-percent').textContent;
+    const badge = document.getElementById('success-badge').textContent;
+
+    let questionsHTML = '';
+    let globalIdx = 0;
+    examData.sections.forEach((section, sectionIdx) => {
+        questionsHTML += `<tr style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white;">
+            <td colspan="5" style="padding: 12px; font-weight: bold; font-size: 14px;">
+                📌 ${currentLang === 'ar' ? 'القسم' : 'Section'} ${sectionIdx + 1}: ${section.title[currentLang]}
+            </td></tr>`;
+        section.questions.forEach((q) => {
+            const selected = document.querySelector(`input[name="q${globalIdx}"]:checked`);
+            const selectedValue = selected ? selected.value : null;
+            const correctValue = correctAnswersMap[globalIdx];
+            const isCorrect = selectedValue === correctValue;
+            
+            let studentAnswerText = currentLang === 'ar' ? '❌ لم يجب' : '❌ No answer';
+            let studentAnswerColor = '#dc2626';
+            if (selectedValue) {
+                const selectedIndex = selectedValue.charCodeAt(0) - 97;
+                studentAnswerText = q.options[selectedIndex][currentLang];
+                studentAnswerColor = isCorrect ? '#059669' : '#dc2626';
+            }
+            const correctAnswerText = q.options[q.correct][currentLang];
+            const rowBg = isCorrect ? '#f0fdf4' : '#fef2f2';
+            const borderLeft = isCorrect ? '4px solid #10b981' : '4px solid #ef4444';
+            
+            questionsHTML += `<tr style="background: ${rowBg}; border-right: ${borderLeft};">
+                <td style="padding: 10px; border: 1px solid #e5e7eb; text-align: center; font-weight: bold; vertical-align: top; width: 35px;">${globalIdx + 1}</td>
+                <td style="padding: 10px; border: 1px solid #e5e7eb; vertical-align: top; width: 35%;">
+                    <strong style="color: #1d4ed8;">${currentLang === 'ar' ? '❓ السؤال:' : '❓ Question:'}</strong><br>
+                    <span style="color: #374151; font-size: 13px;">${q.q[currentLang]}</span>
+                </td>
+                <td style="padding: 10px; border: 1px solid #e5e7eb; vertical-align: top; width: 22%;">
+                    <strong style="color: ${studentAnswerColor};">${currentLang === 'ar' ? '✍️ إجابة الطالب:' : '✍️ Student Answer:'}</strong><br>
+                    <span style="color: ${studentAnswerColor}; font-size: 13px;">${studentAnswerText}</span>
+                </td>
+                <td style="padding: 10px; border: 1px solid #e5e7eb; vertical-align: top; width: 22%;">
+                    <strong style="color: #059669;">${currentLang === 'ar' ? '✅ الإجابة الصحيحة:' : '✅ Correct Answer:'}</strong><br>
+                    <span style="color: #059669; font-size: 13px;">${correctAnswerText}</span>
+                </td>
+                <td style="padding: 10px; border: 1px solid #e5e7eb; text-align: center; vertical-align: middle; width: 60px;">
+                    ${isCorrect 
+                        ? '<span style="font-size: 24px;">✅</span><br><span style="color: #059669; font-weight: bold; font-size: 11px;">' + (currentLang === 'ar' ? 'صحيح' : 'Correct') + '</span>' 
+                        : '<span style="font-size: 24px;">❌</span><br><span style="color: #dc2626; font-weight: bold; font-size: 11px;">' + (currentLang === 'ar' ? 'خطأ' : 'Wrong') + '</span>'}
+                </td></tr>`;
+            globalIdx++;
+        });
+    });
+
+    const answersHTML = `
+        <div style="font-family: 'Segoe UI', Tahoma, Arial, sans-serif; direction: ${currentLang === 'ar' ? 'rtl' : 'ltr'};">
+            <div style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: white; padding: 20px; border-radius: 10px 10px 0 0; text-align: center;">
+                <h2 style="margin: 0; font-size: 22px;">⚖️ ${currentLang === 'ar' ? 'نتيجة امتحان مقارنة الأعداد' : 'Comparing Numbers Exam Result'}</h2>
+                <p style="margin: 5px 0 0 0; opacity: 0.9;">${currentLang === 'ar' ? 'الصف الخامس الابتدائي' : 'Grade 5'}</p>
+            </div>
+            <div style="background: #eff6ff; padding: 15px; border: 1px solid #bfdbfe;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 8px; font-weight: bold; color: #1d4ed8;">${currentLang === 'ar' ? '😊 الاسم:' : '😊 Name:'}</td>
+                        <td style="padding: 8px;">${name}</td>
+                        <td style="padding: 8px; font-weight: bold; color: #1d4ed8;">${currentLang === 'ar' ? '🏫 الشعبة:' : '🏫 Class:'}</td>
+                        <td style="padding: 8px;">${studentClass}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; font-weight: bold; color: #1d4ed8;">${currentLang === 'ar' ? '📅 التاريخ:' : '📅 Date:'}</td>
+                        <td style="padding: 8px;">${date}</td>
+                        <td style="padding: 8px; font-weight: bold; color: #1d4ed8;">${currentLang === 'ar' ? '🏆 التقدير:' : '🏆 Grade:'}</td>
+                        <td style="padding: 8px;">${badge}</td>
+                    </tr>
+                </table>
+            </div>
+            <div style="background: white; padding: 20px; text-align: center; border-bottom: 2px solid #e5e7eb;">
+                <div style="display: inline-block; margin: 0 15px;">
+                    <div style="font-size: 32px; font-weight: bold; color: #3b82f6;">${score}</div>
+                    <div style="color: #6b7280; font-size: 13px;">${currentLang === 'ar' ? 'الدرجة الكلية' : 'Total Score'}</div>
+                </div>
+                <div style="display: inline-block; margin: 0 15px;">
+                    <div style="font-size: 32px; font-weight: bold; color: #10b981;">${successRate}%</div>
+                    <div style="color: #6b7280; font-size: 13px;">${currentLang === 'ar' ? 'نسبة النجاح' : 'Success Rate'}</div>
+                </div>
+            </div>
+            <h3 style="background: #f3f4f6; padding: 12px; margin: 0; color: #1f2937; border-bottom: 2px solid #d1d5db;">
+                📝 ${currentLang === 'ar' ? 'تفاصيل الأسئلة والإجابات الكاملة' : 'Full Questions & Answers Details'}
+            </h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <thead>
+                    <tr style="background: #3b82f6; color: white;">
+                        <th style="padding: 10px; border: 1px solid #1d4ed8; width: 35px;">#</th>
+                        <th style="padding: 10px; border: 1px solid #1d4ed8; width: 35%;">${currentLang === 'ar' ? 'السؤال' : 'Question'}</th>
+                        <th style="padding: 10px; border: 1px solid #1d4ed8; width: 22%;">${currentLang === 'ar' ? 'إجابة الطالب' : 'Student Answer'}</th>
+                        <th style="padding: 10px; border: 1px solid #1d4ed8; width: 22%;">${currentLang === 'ar' ? 'الإجابة الصحيحة' : 'Correct Answer'}</th>
+                        <th style="padding: 10px; border: 1px solid #1d4ed8; width: 60px;">${currentLang === 'ar' ? 'النتيجة' : 'Result'}</th>
+                    </tr>
+                </thead>
+                <tbody>${questionsHTML}</tbody>
+            </table>
+            <div style="background: linear-gradient(135deg, #eff6ff, #dbeafe); padding: 15px; border-radius: 0 0 10px 10px; border-top: 2px solid #3b82f6;">
+                <p style="margin: 0; color: #1e40af; text-align: center; font-size: 13px;">
+                    ⚖️ <strong>${currentLang === 'ar' ? 'أحسنت يا بطل! استمر في إتقان مقارنة الأعداد!' : 'Great job, champion! Keep mastering number comparison!'}</strong> ⚖️
+                </p>
+                <p style="margin: 5px 0 0 0; color: #1e40af; text-align: center; font-size: 12px;">
+                    ${currentLang === 'ar' ? 'تم إرسال هذا التقرير تلقائياً | Mr. Mohammed Hesham' : 'This report was automatically sent | Mr. Mohammed Hesham'}
+                </p>
+            </div>
+        </div>`;
+
+    emailjs.send(SERVICE_ID, TEMPLATE_ID, {
+        to_email: TARGET_EMAIL,
+        student_name: name,
+        student_class: studentClass,
+        exam_date: date,
+        total_score: score,
+        success_rate: successRate,
+        grade: badge,
+        answers_table: answersHTML
+    }).then(() => {
+        status.textContent = currentLang === 'ar' ? '✅ تم إرسال نتيجتك للمعلم!' : '✅ Your result was sent to the teacher!';
+        status.style.color = '#059669';
+        btn.textContent = currentLang === 'ar' ? '✓ تم الإرسال' : '✓ Sent';
+    }).catch(err => {
+        status.textContent = currentLang === 'ar' ? '❌ حدث خطأ، حاول مرة أخرى' : '❌ Something went wrong, try again';
+        status.style.color = '#dc2626';
+        btn.disabled = false;
+        btn.textContent = currentLang === 'ar' ? '📧 حاول مرة أخرى' : '📧 Try Again';
+        console.error('EmailJS Error:', err);
+    });
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    const savedState = loadState();
+    if (savedState && savedState.seed) {
+        currentSeed = savedState.seed;
+        currentLang = savedState.lang || 'ar';
+        timeRemaining = savedState.timeRemaining !== undefined ? savedState.timeRemaining : TOTAL_TIME;
+        answersVisible = savedState.answersVisible || false;
+        document.documentElement.lang = currentLang;
+        document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+        document.getElementById('btn-ar').classList.toggle('active', currentLang === 'ar');
+        document.getElementById('btn-en').classList.toggle('active', currentLang === 'en');
+        document.body.classList.toggle('en-mode', currentLang === 'en');
+        document.querySelectorAll('[data-ar][data-en]').forEach(el => {
+            el.innerHTML = currentLang === 'ar' ? el.getAttribute('data-ar') : el.getAttribute('data-en');
+        });
+    } else {
+        currentSeed = Date.now();
+    }
+    prepareShuffledExam();
+    renderExam();
+    if (savedState) {
+        if (savedState.studentName) document.getElementById('studentName').value = savedState.studentName;
+        if (savedState.studentClass) document.getElementById('studentClass').value = savedState.studentClass;
+        if (savedState.examDate) document.getElementById('examDate').value = savedState.examDate;
+        if (savedState.answers) restoreAnswers(savedState.answers);
+    }
+    setupAnswerListeners();
+    setupInputListeners();
+    startTimer();
+});
+
+window.addEventListener('beforeunload', () => saveState(false));
+</script>
+</body>
+</html>
